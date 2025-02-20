@@ -113,6 +113,20 @@ class Example(QWidget):
                """)
         self.search_remove_button.clicked.connect(self.clear_search)
 
+        self.label = QLabel(self)
+        self.label.setStyleSheet("""QLabel{
+            font-size: 14px;
+            color: black;
+            background-color: white;
+            padding: 10px;
+            border-radius: 15px; 
+            border-width: 1px;
+            border-style: solid;
+            border-color: grey;
+        }""")
+        self.label.move(5, 40)
+        self.label.hide()
+
 
     def update_image(self):
         self.pixmap = QPixmap(self.map_file)
@@ -187,6 +201,10 @@ class Example(QWidget):
                            'found']):
                     toponym = response_json["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
                     cords = toponym['Point']['pos']
+                    address_text: str = toponym['metaDataProperty']['GeocoderMetaData']['Address']['formatted']
+                    self.label.show()
+                    self.label.setText(address_text)
+                    self.label.adjustSize()
                     self.pt.clear()
                     self.pt.append(cords.replace(' ', ','))
                     self.ll_one, self.ll_two = map(float, cords.split())
@@ -207,8 +225,28 @@ class Example(QWidget):
                                        background-color: lightgrey;
                                    }
                                """)
+            self.label.setStyleSheet("""QLabel{
+                        font-size: 14px;
+                        color: white;
+                        background-color: grey;
+                        padding: 10px;
+                        border-radius: 15px; 
+                        border-width: 1px;
+                        border-style: solid;
+                        border-color: lightgrey;
+                    }""")
         elif self.map_theme == 'dark':
             self.map_theme = 'light'
+            self.label.setStyleSheet("""QLabel{
+                        font-size: 14px;
+                        color: black;
+                        background-color: white;
+                        padding: 10px;
+                        border-radius: 15px; 
+                        border-width: 1px;
+                        border-style: solid;
+                        border-color: grey;
+                    }""")
             self.theme_button.setStyleSheet("""
                                QPushButton {
                                    border-radius: 20px; 
@@ -232,6 +270,7 @@ class Example(QWidget):
         self.setFocus()
         self.getImage()
         self.image.setPixmap(QPixmap(self.map_file))
+        self.label.hide()
 
     def closeEvent(self, event):
         """При закрытии формы подчищаем за собой"""
