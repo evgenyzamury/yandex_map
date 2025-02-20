@@ -1,8 +1,9 @@
+import pprint
 import sys
 import os
 import requests
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import QApplication, QWidget, QLabel, QPushButton
+from PyQt6.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QLineEdit
 from PyQt6.QtCore import Qt
 
 SCREEN_SIZE = [600, 450]
@@ -41,25 +42,30 @@ class Example(QWidget):
         self.z = 17
         self.map_theme = 'light'
         self.map_file = 'map.png'
+        self.pt = list()
         self.getImage()
         self.initUI()
+        self.setFocus()
 
     def getImage(self):
         server_address = 'https://static-maps.yandex.ru/v1?'
         api_key = 'f3a0fe3a-b07e-4840-a1da-06f18b2ddf13'
-        # Готовим запрос.
-
-        response = requests.get(server_address, params={
+        map_params = {
             'll': ','.join(map(str, (self.ll_one, self.ll_two))),
             'z': self.z,
             'apikey': api_key,
-            'theme': self.map_theme
-        })
+            'theme': self.map_theme,
+            'pt': '~'.join(map(str, self.pt)),
+        }
+        # Готовим запрос.
+
+        response = requests.get(server_address, map_params)
 
         if not response:
             print("Ошибка выполнения запроса:")
             print("Http статус:", response.status_code, "(", response.reason, ")")
             print(self.z, self.ll_one, self.ll_two)
+            print(map_params)
             sys.exit(1)
 
         # Запишем полученное изображение в файл.
@@ -82,8 +88,10 @@ class Example(QWidget):
                        background-color: cyan;
                    }
                """)
-        # Изображение
         self.theme_button.clicked.connect(self.change_theme)
+        self.search_edit = QLineEdit(self)
+        self.search_edit.move(10, 10)
+        self.search_edit.clearFocus()
 
     def update_image(self):
         self.pixmap = QPixmap(self.map_file)
@@ -110,57 +118,85 @@ class Example(QWidget):
             self.getImage()
             self.image.setPixmap(QPixmap(self.map_file))
 
-        elif event.key() == Qt.Key.Key_S:
+        elif event.key() == Qt.Key.Key_Down:
             self.ll_two -= step[self.z]
             if self.ll_two < -90:
                 self.ll_two += 180
             self.getImage()
             self.image.setPixmap(QPixmap(self.map_file))
 
-        elif event.key() == Qt.Key.Key_W:
+        elif event.key() == Qt.Key.Key_Up:
             self.ll_two += step[self.z]
             if self.ll_two > 90:
                 self.ll_two -= 180
             self.getImage()
             self.image.setPixmap(QPixmap(self.map_file))
 
-        elif event.key() == Qt.Key.Key_D:
+        elif event.key() == Qt.Key.Key_Right:
             self.ll_one += step[self.z]
             if self.ll_one > 180:
                 self.ll_one -= 360
             self.getImage()
             self.image.setPixmap(QPixmap(self.map_file))
 
-        elif event.key() == Qt.Key.Key_A:
+        elif event.key() == Qt.Key.Key_Left:
             self.ll_one -= step[self.z]
             if self.ll_one < -180:
                 self.ll_one += 360
             self.getImage()
             self.image.setPixmap(QPixmap(self.map_file))
 
+        elif event.key() == Qt.Key.Key_Enter or event.key() == Qt.Key.Key_Enter - 1:  # enter = 16777221
+            search = self.search_edit.text()
+            if search:
+                search_server = 'https://geocode-maps.yandex.ru/1.x/?'
+                search_params = {
+                    'apikey': '8013b162-6b42-4997-9691-77b7074026e0',
+                    'geocode': search,
+                    'lang': 'ru_RU',
+                    'format': 'json'
+                }
+                response = requests.get(search_server, params=search_params)
+                if not response:
+                    print(response.status_code)
+                    print(search_params)
+                    exit(-1)
+                response_json = response.json()
+                if int(response_json['response']['GeoObjectCollection']['metaDataProperty']['GeocoderResponseMetaData'][
+                           'found']):
+                    toponym = response_json["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
+                    cords = toponym['Point']['pos']
+                    self.pt.append(cords.replace(' ', ','))
+                    self.ll_one, self.ll_two = map(float, cords.split())
+                    self.getImage()
+                    self.image.setPixmap(QPixmap(self.map_file))
+            self.search_edit.clearFocus()
+            self.setFocus()
+
     def change_theme(self):
         if self.map_theme == 'light':
             self.map_theme = 'dark'
             self.theme_button.setStyleSheet("""
-                               QPushButton {
-                                   border-radius: 20px; 
-                                   background-color: black;
-                               }
-                               QPushButton:hover {
-                                   background-color: lightgrey;
-                               }
-                           """)
+                                   QPushButton {
+                                       border-radius: 20px; 
+                                       background-color: black;
+                                   }
+                                   QPushButton:hover {
+                                       background-color: lightgrey;
+                                   }
+                               """)
         elif self.map_theme == 'dark':
             self.map_theme = 'light'
             self.theme_button.setStyleSheet("""
-                                           QPushButton {
-                                               border-radius: 20px; 
-                                               background-color: lightblue;
-                                           }
-                                           QPushButton:hover {
-                                               background-color: blue;
-                                           }
-                                       """)
+                                               QPushButton {
+                                                   border-radius: 20px; 
+                                                   background-color: lightblue;
+                                               }
+                                               QPushButton:hover {
+                                                   background-color: blue;
+                                               }
+                                           """)
+        self.setFocus()
         self.getImage()
         self.image.setPixmap(QPixmap(self.map_file))
 
