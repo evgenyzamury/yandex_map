@@ -76,22 +76,43 @@ class Example(QWidget):
         self.setGeometry(100, 100, *SCREEN_SIZE)
         self.setWindowTitle('Отображение карты')
         self.update_image()
+
         self.theme_button = QPushButton(self)
         self.theme_button.resize(40, 40)
         self.theme_button.move(540, 20)
         self.theme_button.setStyleSheet("""
                    QPushButton {
                        border-radius: 20px; 
-                       background-color: lightblue;
+                       background-color: #e6e6e6;
+                       border-width: 1px;
+                       border-style: solid;
+                       border-color: black;
                    }
                    QPushButton:hover {
-                       background-color: cyan;
+                       background-color: #00FFFF;
                    }
                """)
         self.theme_button.clicked.connect(self.change_theme)
+
         self.search_edit = QLineEdit(self)
         self.search_edit.move(10, 10)
         self.search_edit.clearFocus()
+
+        self.search_remove_button = QPushButton(self)
+        self.search_remove_button.resize(30, 30)
+        self.search_remove_button.move(150, 5)
+        self.search_remove_button.setStyleSheet("""
+                   QPushButton {
+                       border-radius: 15px; 
+                       background-color: lightgrey;
+                       background-image: url(cansel.png);
+                   }
+                   QPushButton:hover {
+                       background-color: grey;
+                   }
+               """)
+        self.search_remove_button.clicked.connect(self.clear_search)
+
 
     def update_image(self):
         self.pixmap = QPixmap(self.map_file)
@@ -166,6 +187,7 @@ class Example(QWidget):
                            'found']):
                     toponym = response_json["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
                     cords = toponym['Point']['pos']
+                    self.pt.clear()
                     self.pt.append(cords.replace(' ', ','))
                     self.ll_one, self.ll_two = map(float, cords.split())
                     self.getImage()
@@ -188,14 +210,25 @@ class Example(QWidget):
         elif self.map_theme == 'dark':
             self.map_theme = 'light'
             self.theme_button.setStyleSheet("""
-                                               QPushButton {
-                                                   border-radius: 20px; 
-                                                   background-color: lightblue;
-                                               }
-                                               QPushButton:hover {
-                                                   background-color: blue;
-                                               }
-                                           """)
+                               QPushButton {
+                                   border-radius: 20px; 
+                                   background-color: #e6e6e6;
+                                   border-width: 1px;
+                                   border-style: solid;
+                                   border-color: black;
+                               }
+                               QPushButton:hover {
+                                   background-color: #00FFFF;
+                               }
+                           """)
+        self.setFocus()
+        self.getImage()
+        self.image.setPixmap(QPixmap(self.map_file))
+
+    def clear_search(self):
+        self.pt.clear()
+        self.search_edit.clear()
+        self.search_edit.clearFocus()
         self.setFocus()
         self.getImage()
         self.image.setPixmap(QPixmap(self.map_file))
