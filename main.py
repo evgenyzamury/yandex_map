@@ -3,7 +3,7 @@ import sys
 import os
 import requests
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QLineEdit
+from PyQt6.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QLineEdit, QCheckBox
 from PyQt6.QtCore import Qt
 
 SCREEN_SIZE = [600, 450]
@@ -40,6 +40,8 @@ class Example(QWidget):
         self.ll_one = 37.530887  # Долгота
         self.ll_two = 55.703118  # Широта
         self.z = 17
+        self.address_text = ''
+        self.postal_code = ''
         self.map_theme = 'light'
         self.map_file = 'map.png'
         self.pt = list()
@@ -124,9 +126,13 @@ class Example(QWidget):
             border-style: solid;
             border-color: grey;
         }""")
-        self.label.move(5, 40)
+        self.label.move(5, 60)
         self.label.hide()
 
+        self.index_checkbox = QCheckBox(self)
+        self.index_checkbox.move(10, 40)
+        self.index_checkbox.stateChanged.connect(self.index_state)
+        self.index_checkbox.hide()
 
     def update_image(self):
         self.pixmap = QPixmap(self.map_file)
@@ -201,9 +207,18 @@ class Example(QWidget):
                            'found']):
                     toponym = response_json["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
                     cords = toponym['Point']['pos']
-                    address_text: str = toponym['metaDataProperty']['GeocoderMetaData']['Address']['formatted']
+                    self.address_text: str = toponym['metaDataProperty']['GeocoderMetaData']['Address']['formatted']
+                    if "postal_code" in toponym["metaDataProperty"]["GeocoderMetaData"]["Address"]:
+                        self.postal_code = toponym["metaDataProperty"]["GeocoderMetaData"]["Address"]["postal_code"]
+                        self.index_checkbox.show()
+                        if self.index_checkbox.isChecked():
+                            self.address_text += self.postal_code
+                    else:
+                        self.postal_code = ''
+                        self.index_checkbox.setChecked(False)
+                        self.index_checkbox.hide()
                     self.label.show()
-                    self.label.setText(address_text)
+                    self.label.setText(self.address_text)
                     self.label.adjustSize()
                     self.pt.clear()
                     self.pt.append(cords.replace(' ', ','))
@@ -272,6 +287,13 @@ class Example(QWidget):
         self.image.setPixmap(QPixmap(self.map_file))
         self.label.hide()
 
+    def index_state(self):
+        if self.index_checkbox.isChecked():
+            self.label.setText(self.label.text() + '\n' + self.postal_code)
+        else:
+            self.label.setText(self.address_text)
+
+        self.label.adjustSize()
     def closeEvent(self, event):
         """При закрытии формы подчищаем за собой"""
         os.remove(self.map_file)
