@@ -203,22 +203,27 @@ class Example(QWidget):
                     print(search_params)
                     exit(-1)
                 response_json = response.json()
+                # если есть результаты по нашему запросу
                 if int(response_json['response']['GeoObjectCollection']['metaDataProperty']['GeocoderResponseMetaData'][
                            'found']):
                     toponym = response_json["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
                     cords = toponym['Point']['pos']
                     self.address_text: str = toponym['metaDataProperty']['GeocoderMetaData']['Address']['formatted']
+                    # если есть данные про почтовый индекс
                     if "postal_code" in toponym["metaDataProperty"]["GeocoderMetaData"]["Address"]:
                         self.postal_code = toponym["metaDataProperty"]["GeocoderMetaData"]["Address"]["postal_code"]
                         self.index_checkbox.show()
-                        if self.index_checkbox.isChecked():
-                            self.address_text += self.postal_code
-                    else:
+
+                        if self.index_checkbox.isChecked():  # если галочка стоит добавляем почтовый индекс
+                            self.label.setText(self.address_text + '\n' + self.postal_code)
+                        else:
+                            self.label.setText(self.address_text)
+                    else:  # если нет данных про почтовый индекс
                         self.postal_code = ''
-                        self.index_checkbox.setChecked(False)
                         self.index_checkbox.hide()
+                        self.label.setText(self.address_text)
+
                     self.label.show()
-                    self.label.setText(self.address_text)
                     self.label.adjustSize()
                     self.pt.clear()
                     self.pt.append(cords.replace(' ', ','))
@@ -294,6 +299,7 @@ class Example(QWidget):
             self.label.setText(self.address_text)
 
         self.label.adjustSize()
+
     def closeEvent(self, event):
         """При закрытии формы подчищаем за собой"""
         os.remove(self.map_file)
