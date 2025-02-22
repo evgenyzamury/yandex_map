@@ -2,7 +2,7 @@ import pprint
 import sys
 import os
 import requests
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtGui import QPixmap, QMouseEvent
 from PyQt6.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QLineEdit, QCheckBox
 from PyQt6.QtCore import Qt
 
@@ -39,7 +39,7 @@ class Example(QWidget):
         self.setWindowTitle("yandex map")
         self.ll_one = 37.530887  # Долгота
         self.ll_two = 55.703118  # Широта
-        self.z = 17
+        self.z = 19
         self.address_text = ''
         self.postal_code = ''
         self.map_theme = 'light'
@@ -52,6 +52,7 @@ class Example(QWidget):
     def getImage(self):
         server_address = 'https://static-maps.yandex.ru/v1?'
         api_key = 'f3a0fe3a-b07e-4840-a1da-06f18b2ddf13'
+
         map_params = {
             'll': ','.join(map(str, (self.ll_one, self.ll_two))),
             'z': self.z,
@@ -140,6 +141,41 @@ class Example(QWidget):
         self.image.move(0, 0)
         self.image.resize(600, 450)
         self.image.setPixmap(self.pixmap)
+
+    def mousePressEvent(self, event: QMouseEvent):
+        # найдём границы дельты изменении координат с помощью геометрической прогрессии
+        cords_diff = ((2 ** (22 - self.z) * 0.0001) * 2, ((85 * 2 ** (21 - self.z)) * 0.000001) * 2)
+
+        # найдем как сильно поменяются координаты если переместиться на 1 пиксель
+        x_cords_diff = cords_diff[0] / 600
+        y_cords_diff = cords_diff[1] / 450
+
+        # найдём - где произошло нажатие
+        x, y = event.position().x(), event.position().y()
+
+        # найдём центр нашего экрана
+        x_center, y_center = map(lambda a: a // 2, SCREEN_SIZE)
+
+        # разница между центром и точки касания
+        diff_x = x - x_center
+        diff_y = y - y_center
+
+        # найдем координаты долготу и широту, где нажали ЛКМ
+
+        print(diff_x, diff_y)
+        if diff_x:
+            ll_one = self.ll_one + diff_x * x_cords_diff
+        else:
+            ll_one = self.ll_one
+
+        if diff_y:
+            ll_two = self.ll_two - diff_y * y_cords_diff
+        else:
+            ll_two = self.ll_two
+
+        self.pt.append(f'{ll_one},{ll_two}')
+        self.getImage()
+        self.image.setPixmap(QPixmap(self.map_file))
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key.Key_PageUp:
