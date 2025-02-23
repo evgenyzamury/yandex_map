@@ -172,9 +172,10 @@ class Example(QWidget):
         else:
             ll_two = self.ll_two
 
-        self.geocoder_query(f'{ll_one},{ll_two}')
-        self.getImage()
-        self.image.setPixmap(QPixmap(self.map_file))
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.geocoder_query(f'{ll_one},{ll_two}')
+            self.getImage()
+            self.image.setPixmap(QPixmap(self.map_file))
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key.Key_PageUp:
