@@ -162,7 +162,6 @@ class Example(QWidget):
 
         # найдем координаты долготу и широту, где нажали ЛКМ
 
-        print(diff_x, diff_y)
         if diff_x:
             ll_one = self.ll_one + diff_x * x_cords_diff
         else:
@@ -173,7 +172,7 @@ class Example(QWidget):
         else:
             ll_two = self.ll_two
 
-        self.pt.append(f'{ll_one},{ll_two}')
+        self.geocoder_query(f'{ll_one},{ll_two}')
         self.getImage()
         self.image.setPixmap(QPixmap(self.map_file))
 
@@ -183,7 +182,6 @@ class Example(QWidget):
             self.z += 1
             if self.z > 21:
                 self.z = 21
-            print('pageUP')
             self.getImage()
             self.image.setPixmap(QPixmap(self.map_file))
 
@@ -226,46 +224,10 @@ class Example(QWidget):
         elif event.key() == Qt.Key.Key_Enter or event.key() == Qt.Key.Key_Enter - 1:  # enter = 16777221
             search = self.search_edit.text()
             if search:
-                search_server = 'https://geocode-maps.yandex.ru/1.x/?'
-                search_params = {
-                    'apikey': '8013b162-6b42-4997-9691-77b7074026e0',
-                    'geocode': search,
-                    'lang': 'ru_RU',
-                    'format': 'json'
-                }
-                response = requests.get(search_server, params=search_params)
-                if not response:
-                    print(response.status_code)
-                    print(search_params)
-                    exit(-1)
-                response_json = response.json()
-                # если есть результаты по нашему запросу
-                if int(response_json['response']['GeoObjectCollection']['metaDataProperty']['GeocoderResponseMetaData'][
-                           'found']):
-                    toponym = response_json["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
-                    cords = toponym['Point']['pos']
-                    self.address_text: str = toponym['metaDataProperty']['GeocoderMetaData']['Address']['formatted']
-                    # если есть данные про почтовый индекс
-                    if "postal_code" in toponym["metaDataProperty"]["GeocoderMetaData"]["Address"]:
-                        self.postal_code = toponym["metaDataProperty"]["GeocoderMetaData"]["Address"]["postal_code"]
-                        self.index_checkbox.show()
-
-                        if self.index_checkbox.isChecked():  # если галочка стоит добавляем почтовый индекс
-                            self.label.setText(self.address_text + '\n' + self.postal_code)
-                        else:
-                            self.label.setText(self.address_text)
-                    else:  # если нет данных про почтовый индекс
-                        self.postal_code = ''
-                        self.index_checkbox.hide()
-                        self.label.setText(self.address_text)
-
-                    self.label.show()
-                    self.label.adjustSize()
-                    self.pt.clear()
-                    self.pt.append(cords.replace(' ', ','))
-                    self.ll_one, self.ll_two = map(float, cords.split())
-                    self.getImage()
-                    self.image.setPixmap(QPixmap(self.map_file))
+                cords = self.geocoder_query(search)
+                self.ll_one, self.ll_two = map(float, cords.split())
+                self.getImage()
+                self.image.setPixmap(QPixmap(self.map_file))
             self.search_edit.clearFocus()
             self.setFocus()
 
@@ -318,6 +280,53 @@ class Example(QWidget):
         self.setFocus()
         self.getImage()
         self.image.setPixmap(QPixmap(self.map_file))
+
+    def geocoder_query(self, search: str):
+        search_server = 'https://geocode-maps.yandex.ru/1.x/?'
+        search_params = {
+            'apikey': '8013b162-6b42-4997-9691-77b7074026e0',
+            'geocode': search,
+            'lang': 'ru_RU',
+            'format': 'json'
+        }
+        response = requests.get(search_server, params=search_params)
+        if not response:
+            print(response.status_code)
+            print(search_params)
+            exit(-1)
+        response_json = response.json()
+        # если есть результаты по нашему запросу
+        if int(response_json['response']['GeoObjectCollection']['metaDataProperty']['GeocoderResponseMetaData'][
+                   'found']):
+            toponym = response_json["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
+            cords = toponym['Point']['pos']
+            self.address_text: str = toponym['metaDataProperty']['GeocoderMetaData']['Address']['formatted']
+
+            # расставим '/n' в полученном адресе, чтобы вместить больше текста на экране
+            self.address_text = list(self.address_text)
+            for i in range(0, len(self.address_text), 50):
+                self.address_text.insert(i, '\n')
+            self.address_text = ''.join(self.address_text)
+
+            # если есть данные про почтовый индекс
+            if "postal_code" in toponym["metaDataProperty"]["GeocoderMetaData"]["Address"]:
+                self.postal_code = toponym["metaDataProperty"]["GeocoderMetaData"]["Address"]["postal_code"]
+                self.index_checkbox.show()
+
+                if self.index_checkbox.isChecked():  # если галочка стоит добавляем почтовый индекс
+                    self.label.setText(self.address_text + '\n' + self.postal_code)
+                else:
+                    self.label.setText(self.address_text)
+            else:  # если нет данных про почтовый индекс
+                self.postal_code = ''
+                self.index_checkbox.hide()
+                self.label.setText(self.address_text)
+
+            self.label.show()
+            self.label.adjustSize()
+            self.pt.clear()
+            self.pt.append(cords.replace(' ', ','))
+            return cords
 
     def clear_search(self):
         self.pt.clear()
