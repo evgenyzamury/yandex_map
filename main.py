@@ -1,6 +1,7 @@
 import pprint
 import sys
 import os
+import math
 import requests
 from PyQt6.QtGui import QPixmap, QMouseEvent
 from PyQt6.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QLineEdit, QCheckBox
@@ -176,6 +177,25 @@ class Example(QWidget):
             self.geocoder_query(f'{ll_one},{ll_two}')
             self.getImage()
             self.image.setPixmap(QPixmap(self.map_file))
+        elif event.button() == Qt.MouseButton.RightButton:
+            server = 'https://search-maps.yandex.ru/v1/'
+            params = {
+                'apikey': 'dda3ddba-c9ea-4ead-9010-f43fbc15c6e3',
+                'text': f' ',
+                'lang': 'ru_RU',
+                'll': f'{ll_one},{ll_two}',
+                'spn': f'0.00045,{50 / (111000 * math.cos(math.radians(ll_two)))}',  # в пределах 50 метров по квадрату
+                'type': 'biz',
+            }
+            pprint.pprint(params)
+
+            response = requests.get(server, params=params)
+            if not response:
+                print(response.status_code)
+                print('Ошибка поиска организации')
+                return
+            json = response.json()
+            pprint.pprint(json)
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key.Key_PageUp:
@@ -305,7 +325,7 @@ class Example(QWidget):
 
             # расставим '/n' в полученном адресе, чтобы вместить больше текста на экране
             self.address_text = list(self.address_text)
-            for i in range(0, len(self.address_text), 50):
+            for i in range(50, len(self.address_text), 50):
                 self.address_text.insert(i, '\n')
             self.address_text = ''.join(self.address_text)
 
