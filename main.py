@@ -38,8 +38,8 @@ class Example(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("yandex map")
-        self.ll_one = 37.530887  # Долгота
-        self.ll_two = 55.703118  # Широта
+        self.ll_one = 39.563117  # Долгота
+        self.ll_two = 50.198775  # Широта
         self.z = 19
         self.address_text = ''
         self.postal_code = ''
@@ -162,7 +162,6 @@ class Example(QWidget):
         diff_y = y - y_center
 
         # найдем координаты долготу и широту, где нажали ЛКМ
-
         if diff_x:
             ll_one = self.ll_one + diff_x * x_cords_diff
         else:
@@ -180,22 +179,57 @@ class Example(QWidget):
         elif event.button() == Qt.MouseButton.RightButton:
             server = 'https://search-maps.yandex.ru/v1/'
             params = {
-                'apikey': 'dda3ddba-c9ea-4ead-9010-f43fbc15c6e3',
-                'text': f' ',
+                'apikey': 'dda3ddba-c9ea-4ead-9010-f43fbc15c6e3',  # Ваш API-ключ
+                'text': 'организация',  # Ищем организации
                 'lang': 'ru_RU',
                 'll': f'{ll_one},{ll_two}',
-                'spn': f'0.00045,{50 / (111000 * math.cos(math.radians(ll_two)))}',  # в пределах 50 метров по квадрату
-                'type': 'biz',
+                'type': 'biz',  # Тип объекта (организация)
+                'results': 1,  # Количество результатов
             }
-            pprint.pprint(params)
-
             response = requests.get(server, params=params)
             if not response:
                 print(response.status_code)
                 print('Ошибка поиска организации')
                 return
+
             json = response.json()
-            pprint.pprint(json)
+            if not json.get('features'):
+                print('Организации не найдены.')
+                return
+
+            # Получаем первую найденную организацию
+            feature = json['features'][0]
+            org_name = feature['properties']['name']
+            org_address = feature['properties']['description']
+            org_lon, org_lat = map(float, feature['geometry']['coordinates'])
+
+            # Проверяем, что организация находится в пределах 50 метров
+            if self.haversine(ll_one, ll_two, org_lon, org_lat) <= 50:
+                self.geocoder_query(f'{org_lon},{org_lat}')
+                self.getImage()
+                self.image.setPixmap(QPixmap(self.map_file))
+                self.label.setText(f'{org_name}\n{org_address}')
+                self.label.show()
+                self.label.adjustSize()
+            else:
+                self.clear_search()
+                print('Организация находится за пределами 50 метров.')
+
+    def haversine(self, lon1, lat1, lon2, lat2):
+        # Радиус Земли в метрах
+        R = 6371000
+        # Перевод градусов в радианы
+        phi1 = math.radians(lat1)
+        phi2 = math.radians(lat2)
+        delta_phi = math.radians(lat2 - lat1)
+        delta_lambda = math.radians(lon2 - lon1)
+
+        # Формула гаверсинуса
+        a = math.sin(delta_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+        # Расстояние в метрах
+        return R * c
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key.Key_PageUp:
@@ -357,6 +391,7 @@ class Example(QWidget):
         self.getImage()
         self.image.setPixmap(QPixmap(self.map_file))
         self.label.hide()
+        self.index_checkbox.hide()
 
     def index_state(self):
         if self.index_checkbox.isChecked():
